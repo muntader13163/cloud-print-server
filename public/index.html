@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سيرفر الطباعة السحابي | Cloud Print</title>
-    <!-- Socket.io Client Library -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <style>
         :root {
             --primary: #0078d4;
@@ -72,7 +70,7 @@
             font-size: 0.9rem;
         }
 
-        select, input[type="file"], input[type="number"] {
+        select, input[type="file"], input[type="number"], input[type="text"] {
             width: 100%;
             padding: 10px;
             border: 1px solid var(--border);
@@ -114,79 +112,65 @@
 <div class="container">
     <div class="header">
         <h2>🖨️ سيرفر الطباعة السحابي</h2>
-        <div id="agentStatus" class="status-badge status-offline">جاري الاتصال بحاسوبك...</div>
+        <div id="agentStatus" class="status-badge status-offline">جاري التحقق من اتصال الحاسوب...</div>
     </div>
 
     <form id="printForm">
-        <!-- 1. اختيار الطابعة -->
+        <!-- 1. اسم الطابعة (أو اختيارها) -->
         <div class="form-group">
-            <label for="printerSelect">اختر الطابعة المتصلة بالحاسوب:</label>
-            <select id="printerSelect" required disabled>
-                <option value="">-- بانتظار استجابة الحاسوب --</option>
-            </select>
+            <label for="printerName">اسم الطابعة المستهدفة (كما هي معرفة بالحاسوب):</label>
+            <input type="text" id="printerName" placeholder="مثال: HP LaserJet 1020" required>
         </div>
 
         <!-- 2. رفع الملف -->
         <div class="form-group">
             <label for="fileInput">اختر المستند أو الصورة (PDF / Image):</label>
-            <input type="file" id="fileInput" accept="application/pdf,image/*" required disabled>
+            <input type="file" id="fileInput" accept="application/pdf,image/*" required>
         </div>
 
         <!-- 3. عدد النسخ -->
         <div class="form-group">
             <label for="copiesInput">عدد النسخ:</label>
-            <input type="number" id="copiesInput" value="1" min="1" max="50" required disabled>
+            <input type="number" id="copiesInput" value="1" min="1" max="50" required>
         </div>
 
         <!-- زر الإرسال -->
-        <button type="submit" id="submitBtn" class="btn-print" disabled>طباعة الآن</button>
+        <button type="submit" id="submitBtn" class="btn-print">طباعة الآن</button>
     </form>
 
     <div id="alertBox" class="alert"></div>
 </div>
 
 <script>
-    // الاتصال بسيرفر Socket.io
-    const socket = io();
-
     const agentStatus = document.getElementById('agentStatus');
-    const printerSelect = document.getElementById('printerSelect');
+    const printerNameInput = document.getElementById('printerName');
     const fileInput = document.getElementById('fileInput');
     const copiesInput = document.getElementById('copiesInput');
     const submitBtn = document.getElementById('submitBtn');
     const alertBox = document.getElementById('alertBox');
 
-    // الاستماع لحالة اتصال حاسوبك (Agent)
-    socket.on('agent_status', (data) => {
-        if (data.online) {
-            agentStatus.textContent = '● الحاسوب متصل وجاهز للطباعة';
-            agentStatus.className = 'status-badge status-online';
+    // التحقق الدوري من حالة الطابعات المتصلة (Agent)
+    async function checkAgentStatus() {
+        try {
+            const response = await fetch('/api/printers');
+            const data = await response.json();
             
-            // تعبئة قائمة الطابعات
-            printerSelect.innerHTML = '';
-            data.printers.forEach(printer => {
-                const option = document.createElement('option');
-                option.value = printer;
-                option.textContent = printer;
-                printerSelect.appendChild(option);
-            });
-
-            // تفعيل عناصر الواجهة
-            printerSelect.disabled = false;
-            fileInput.disabled = false;
-            copiesInput.disabled = false;
-            submitBtn.disabled = false;
-        } else {
-            agentStatus.textContent = '○ الحاسوب غير متصل';
+            if (data.printers && data.printers.length > 0) {
+                agentStatus.textContent = '● الحاسوب متصل وجاهز للطباعة';
+                agentStatus.className = 'status-badge status-online';
+            } else {
+                agentStatus.textContent = '○ بانتظار اتصال الوسيط المحلي (agent.py)';
+                agentStatus.className = 'status-badge status-offline';
+            }
+        } catch (e) {
+            agentStatus.textContent = '○ خطأ في الاتصال بالسيرفر';
             agentStatus.className = 'status-badge status-offline';
-            
-            printerSelect.innerHTML = '<option value="">-- الحاسوب مغلق أو غير متصل --</option>';
-            printerSelect.disabled = true;
-            fileInput.disabled = true;
-            copiesInput.disabled = true;
-            submitBtn.disabled = true;
         }
-    });
+    }
+
+    // فحص الحالة عند فتح الصفحة وكل 5 ثوانٍ
+    checkAgentStatus();
+    setInterval(checkAgentStatus, 5000);
 
     // إرسال أمر الطباعة
     document.getElementById('printForm').addEventListener('submit', async (e) => {
@@ -195,26 +179,38 @@
         const file = fileInput.files[0];
         if (!file) return;
 
-        showAlert('جاري رفع الملف وإرساله للطابعة...', 'success');
+        showAlert('جاري تجهيز الملف ورفع المهمة...', 'success');
         submitBtn.disabled = true;
 
-        // تحويل الملف إلى Base64 لنقله عبر WebSocket
+        // تحويل الملف إلى Base64 أو رابط مؤقت ليتم سحبه من الوسيط
         const reader = new FileReader();
-        reader.onload = function(evt) {
-            const fileData = {
-                printerName: printerSelect.value,
+        reader.onload = async function(evt) {
+            const jobData = {
+                printerName: printerNameInput.value,
                 fileName: file.name,
-                fileType: file.type,
-                fileBuffer: evt.target.result,
+                fileUrl: evt.target.result, // إرسال الملف بصيغة Data URL ليقوم الوسيط بتنزيله وطباعته
                 copies: copiesInput.value
             };
 
-            // إرسال البيانات للسيرفر السحابي
-            socket.emit('print_job', fileData);
-            
-            showAlert('تم إرسال أمر الطباعة بنجاح بنجاح إلى حاسوبك!', 'success');
-            submitBtn.disabled = false;
-            fileInput.value = '';
+            try {
+                const response = await fetch('/api/print', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(jobData)
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    showAlert('تم إرسال أمر الطباعة بنجاح إلى حاسوبك المحلي!', 'success');
+                    fileInput.value = '';
+                } else {
+                    showAlert('حدث خطأ أثناء الإرسال: ' + (result.message || 'غير معروف'), 'error');
+                }
+            } catch (err) {
+                showAlert('فشل الاتصال بالسيرفر السحابي: ' + err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+            }
         };
 
         reader.readAsDataURL(file);
@@ -222,10 +218,4 @@
 
     function showAlert(msg, type) {
         alertBox.textContent = msg;
-        alertBox.className = `alert alert-${type}`;
-        alertBox.style.display = 'block';
-    }
-</script>
-
-</body>
-</html>
+        alertBox.className
