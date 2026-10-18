@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>طباعة المستندات - Windows Print</title>
+    <title>طباعة سحابية متقدمة - Cloud Print</title>
     <style>
         :root {
             --win-bg: #f0f0f0;
@@ -33,7 +33,7 @@
             border: 1px solid var(--win-border);
             box-shadow: 0 4px 16px rgba(0,0,0,0.2);
             width: 100%;
-            max-width: 480px;
+            max-width: 500px;
             padding: 20px;
             box-sizing: border-box;
             border-radius: 4px;
@@ -44,15 +44,11 @@
             justify-content: space-between;
             align-items: center;
             border-bottom: 1px solid #e1e1e1;
-            padding-bottom: 12px;
+            padding-bottom: 10px;
             margin-bottom: 15px;
         }
 
-        .dialog-header h3 {
-            margin: 0;
-            font-size: 1.1rem;
-            color: #000;
-        }
+        .dialog-header h3 { margin: 0; font-size: 1.1rem; }
 
         .status-badge {
             font-size: 0.8rem;
@@ -63,21 +59,18 @@
         .status-online { background-color: #dff6dd; color: var(--success); }
         .status-offline { background-color: #fde8e8; color: var(--danger); }
 
-        .form-section {
-            margin-bottom: 15px;
-        }
+        .form-section { margin-bottom: 12px; }
 
         label {
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             font-size: 0.85rem;
             font-weight: 600;
-            color: #333;
         }
 
         select, input[type="file"], input[type="number"] {
             width: 100%;
-            padding: 8px 10px;
+            padding: 8px;
             border: 1px solid var(--win-border);
             border-radius: 2px;
             box-sizing: border-box;
@@ -85,28 +78,39 @@
             background: #fff;
         }
 
-        select:focus, input:focus {
-            border-color: var(--win-blue);
-            outline: none;
+        /* شاشة المعاينة للملفات والصور */
+        .preview-container {
+            width: 100%;
+            height: 180px;
+            border: 1px dashed var(--win-border);
+            background: #fafafa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            margin-bottom: 15px;
+            position: relative;
+            border-radius: 2px;
         }
 
-        .preview-box {
-            background: #fafafa;
-            border: 1px dashed var(--win-border);
-            padding: 10px;
-            text-align: center;
+        .preview-container img, .preview-container iframe {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        .preview-placeholder {
+            color: #777;
             font-size: 0.85rem;
-            color: #666;
-            margin-bottom: 15px;
+            text-align: center;
         }
 
         .dialog-footer {
             display: flex;
             justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
             border-top: 1px solid #e1e1e1;
-            padding-top: 15px;
+            padding-top: 12px;
+            margin-top: 15px;
         }
 
         .btn {
@@ -123,9 +127,8 @@
             color: white;
             border-color: var(--win-blue);
         }
-
         .btn-print:hover { background-color: var(--win-blue-hover); }
-        .btn-print:disabled { background-color: #cccccc; border-color: #b0b0b0; cursor: not-allowed; }
+        .btn-print:disabled { background-color: #ccc; cursor: not-allowed; }
 
         .alert {
             margin-top: 10px;
@@ -142,36 +145,38 @@
 
 <div class="print-dialog">
     <div class="dialog-header">
-        <h3>🖨️ طباعة (Print)</h3>
+        <h3>🖨️ طباعة سحابية متقدمة</h3>
         <div id="agentStatus" class="status-badge status-offline">جاري الاتصال...</div>
     </div>
 
     <form id="printForm">
-        <!-- 1. اختيار الطابعة تلقائياً -->
         <div class="form-section">
-            <label for="printerSelect">الطابعة (Printer):</label>
+            <label for="printerSelect">الطابعة المستهدفة:</label>
             <select id="printerSelect" required disabled>
                 <option value="">-- بانتظار اتصال الحاسوب المحلي --</option>
             </select>
         </div>
 
-        <!-- 2. اختيار الملف -->
         <div class="form-section">
             <label for="fileInput">اختر المستند (PDF أو صورة):</label>
             <input type="file" id="fileInput" accept="application/pdf,image/*" required>
         </div>
 
-        <!-- 3. عدد النسخ -->
+        <!-- شاشة المعاينة -->
+        <label>معاينة الملف:</label>
+        <div class="preview-container" id="previewContainer">
+            <div class="preview-placeholder">الرجاء اختيار ملف لعرض المعاينة هنا</div>
+        </div>
+
         <div class="form-section">
-            <label for="copiesInput">عدد النسخ (Copies):</label>
+            <label for="copiesInput">عدد النسخ:</label>
             <input type="number" id="copiesInput" value="1" min="1" max="99" required>
         </div>
 
         <div id="alertBox" class="alert"></div>
 
-        <!-- الأزرار السفلية المشابهة لويندوز -->
         <div class="dialog-footer">
-            <button type="submit" id="submitBtn" class="btn btn-print" disabled>طباعة</button>
+            <button type="submit" id="submitBtn" class="btn btn-print" disabled>طباعة الآن</button>
         </div>
     </form>
 </div>
@@ -183,21 +188,49 @@
     const copiesInput = document.getElementById('copiesInput');
     const submitBtn = document.getElementById('submitBtn');
     const alertBox = document.getElementById('alertBox');
+    const previewContainer = document.getElementById('previewContainer');
 
-    // جلب الطابعات المتصلة تلقائياً من الحاسوب المحلي كل 4 ثوانٍ
+    let fileBase64Data = "";
+
+    // معاينة الملف عند اختياره
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            fileBase64Data = evt.target.result;
+            previewContainer.innerHTML = '';
+
+            if (file.type.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = fileBase64Data;
+                previewContainer.appendChild(img);
+            } else if (file.type === 'application/pdf') {
+                const iframe = document.createElement('iframe');
+                iframe.src = fileBase64Data;
+                iframe.style.width = '100%';
+                iframe.style.height = '100%';
+                iframe.style.border = 'none';
+                previewContainer.appendChild(iframe);
+            } else {
+                previewContainer.innerHTML = '<div class="preview-placeholder">الملف جاهز للطباعة (لا توجد معاينة متاحة لهذا النوع)</div>';
+            }
+        };
+        reader.readAsDataURL(file);
+    });
+
+    // جلب الطابعات المتصلة
     async function fetchPrinters() {
         try {
             const response = await fetch('/api/printers');
             const data = await response.json();
             
             if (data.printers && data.printers.length > 0) {
-                agentStatus.textContent = '● الحاسوب متصل';
+                agentStatus.textContent = '● الحاسوب متصل بالخلفية';
                 agentStatus.className = 'status-badge status-online';
                 
-                // حفظ الطابعة المختارة حالياً إن وجدت
                 const currentSelected = printerSelect.value;
-
-                // تحديث القائمة المنسدلة بالطابعات الحقيقية
                 printerSelect.innerHTML = '';
                 data.printers.forEach(printer => {
                     const option = document.createElement('option');
@@ -212,59 +245,55 @@
             } else {
                 agentStatus.textContent = '○ بانتظار تشغيل agent.py';
                 agentStatus.className = 'status-badge status-offline';
-                printerSelect.innerHTML = '<option value="">-- الحاسوب المحلي غير متصل --</option>';
+                printerSelect.innerHTML = '<option value="">-- الحاسوب غير متصل --</option>';
                 printerSelect.disabled = true;
                 submitBtn.disabled = true;
             }
         } catch (e) {
-            agentStatus.textContent = '○ خطأ في الاتصال بالسيرفر';
-            agentStatus.className = 'status-badge status-offline';
+            agentStatus.textContent = '○ خطأ في الاتصال';
         }
     }
 
     fetchPrinters();
     setInterval(fetchPrinters, 4000);
 
-    // إرسال مهمة الطباعة
+    // إرسال المهمة للسيرفر
     document.getElementById('printForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const file = fileInput.files[0];
-        if (!file) return;
+        if (!file || !fileBase64Data) return;
 
-        showAlert('جاري معالجة الملف وإرساله للطابعة...', 'success');
+        showAlert('جاري إرسال المهمة للطباعة الصامتة...', 'success');
         submitBtn.disabled = true;
 
-        const reader = new FileReader();
-        reader.onload = async function(evt) {
-            const jobData = {
-                printerName: printerSelect.value,
-                fileName: file.name,
-                fileUrl: evt.target.result,
-                copies: copiesInput.value
-            };
-
-            try {
-                const response = await fetch('/api/print', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(jobData)
-                });
-
-                const result = await response.json();
-                if (response.ok) {
-                    showAlert('تم إرسال المهمة بنجاح، ستتم الطباعة الآن!', 'success');
-                    fileInput.value = '';
-                } else {
-                    showAlert('حدث خطأ: ' + (result.message || 'غير معروف'), 'error');
-                }
-            } catch (err) {
-                showAlert('فشل الاتصال: ' + err.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-            }
+        const jobData = {
+            printerName: printerSelect.value,
+            fileName: file.name,
+            fileUrl: fileBase64Data,
+            copies: copiesInput.value
         };
 
-        reader.readAsDataURL(file);
+        try {
+            const response = await fetch('/api/print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(jobData)
+            });
+
+            const result = await response.json();
+            if (response.ok) {
+                showAlert('تمت الطباعة في الخلفية بنجاح تام!', 'success');
+                fileInput.value = '';
+                previewContainer.innerHTML = '<div class="preview-placeholder">الرجاء اختيار ملف لعرض المعاينة هنا</div>';
+                fileBase64Data = "";
+            } else {
+                showAlert('حدث خطأ: ' + (result.message || 'غير معروف'), 'error');
+            }
+        } catch (err) {
+            showAlert('فشل الاتصال: ' + err.message, 'error');
+        } finally {
+            submitBtn.disabled = false;
+        }
     });
 
     function showAlert(msg, type) {
