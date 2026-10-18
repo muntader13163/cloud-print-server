@@ -1,43 +1,67 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
 const cors = require('cors');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public')); // واجهة الويب للمستخدم
 
-const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: "*" } });
+// تخزين مؤقت لمهام الطباعة والحالة في الذاكرة (مؤقت على مستوى الـ Serverless)
+let currentJob = null;
+let registeredPrinters = [];
 
-let activeAgent = null;
-
-io.on('connection', (socket) => {
-    console.log('اتصال جديد:', socket.id);
-
-    // تسجيل حاسوبك كـ "عيل طباعة محلي"
-    socket.on('register_agent', (data) => {
-        activeAgent = socket.id;
-        console.log(`تم ربط حاسوبك بنجاح! الطابعات المتاحة:`, data.printers);
-        io.emit('agent_status', { online: true, printers: data.printers });
-    });
-
-    // استقبال أمر الطباعة من الهاتف وإرساله لحاسوبك
-    socket.on('print_job', (jobData) => {
-        if (activeAgent) {
-            io.to(activeAgent).emit('execute_print', jobData);
-        }
-    });
-
-    socket.on('disconnect', () => {
-        if (socket.id === activeAgent) {
-            activeAgent = null;
-            io.emit('agent_status', { online: false });
-            console.log('انقطع اتصال الحاسوب المحلي بالسيرفر');
-        }
-    });
+// مسار تسجيل الطابعات من الوسيط المحلي
+app.post('/api/register-agent', (req, res) => {
+    const { printers } = req.body;
+    if (printers) {
+        registeredPrinters = printers;
+        console.log('تم تسجيل الطابعات المتاحة:', printers);
+    }
+    res.json({ success: true });
 });
 
+// مسار لجلب الطابعات المسجلة لعرضها في الواجهة
+app.get('/api/printers', (req, res) => {
+    res.json({ printers: registeredPrinters });
+});
+
+// مسار لاستقبال طلب الطباعة من الواجهة (من هاتف أو جهاز آخر)
+app.post('/api/print', (req, res) => {
+    const { fileUrl, printerName, fileName } = req.body;
+    
+    // وضع المهمة في قائمة الانتظار لكي يسحبها الوسيط المحلي
+    currentJob = {
+        id: Date.now(),
+        fileUrl,
+        printerName,
+        fileName: fileName || "document.pdf"
+    };
+
+    console.log('تم إضافة مهمة طباعة جديدة:', currentJob);
+    res.json({ success: true, message: 'تم إرسال المهمة بنجاح، بانتظار سحبها من الوسيط المحلي' });
+});
+
+// مسار لكي يقوم الوسيط المحلي (agent.py) بالسؤال عن مهام الطباعة الجديدة
+app.get('/api/get-job', (req, res) => {
+    if (currentJob) {
+        const jobToSend = currentJob;
+        currentJob = null; // مسح المهمة بعد أن تم سحبها لكي لا تتكرر الطباعة
+        res.json(jobToSend);
+    } else {
+        res.status(204).send(); // لا توجد مهام جديدة حالياً
+    }
+});
+
+// المسار الرئيسي للتأكد من عمل السيرفر
+app.get('/', (req, res) => {
+    res.send('نظام الطباعة السحابي يعمل بنجاح! متصل مع Vercel.');
+});
+
+// لتشغيل السيرفر محلياً (إذا أردت اختباره على جهازك)
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`السيرفر السحابي يعمل على المنفذ ${PORT}`));
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(PORT, () => console.log(`السيرفر يعمل محلياً على المنفذ ${PORT}`));
+}
+
+module.exports = app;
