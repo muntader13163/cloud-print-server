@@ -5,7 +5,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static('public')); // واجهة الويب للمستخدم
+app.use(express.static('public')); // هذا السطر يكفي لعرض ملف index.html تلقائياً عند فتح الرابط
 
 // تخزين مؤقت لمهام الطباعة والحالة في الذاكرة (مؤقت على مستوى الـ Serverless)
 let currentJob = null;
@@ -51,11 +51,6 @@ app.get('/api/get-job', (req, res) => {
     } else {
         res.status(204).send(); // لا توجد مهام جديدة حالياً
     }
-});
-
-// المسار الرئيسي للتأكد من عمل السيرفر
-app.get('/', (req, res) => {
-    res.send('نظام الطباعة السحابي يعمل بنجاح! متصل مع Vercel.');
 });
 
 // لتشغيل السيرفر محلياً (إذا أردت اختباره على جهازك)
