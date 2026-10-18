@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سيرفر الطباعة السحابي | Cloud Print</title>
+    <!-- Socket.io Client Library -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #0078d4;
+            --primary-hover: #106ebe;
+            --bg: #f3f3f3;
+            --card-bg: #ffffff;
+            --text: #242424;
+            --border: #e0e0e0;
+            --success: #107c41;
+            --danger: #d13438;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 90vh;
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            width: 100%;
+            max-width: 480px;
+            padding: 24px;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .header h2 {
+            margin: 0 0 8px 0;
+            color: var(--primary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-online { background-color: #dff6dd; color: var(--success); }
+        .status-offline { background-color: #fde8e8; color: var(--danger); }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        select, input[type="file"], input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 0.95rem;
+            background-color: #fafafa;
+        }
+
+        .btn-print {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-print:hover { background-color: var(--primary-hover); }
+        .btn-print:disabled { background-color: #ccc; cursor: not-allowed; }
+
+        .alert {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            display: none;
+        }
+        .alert-success { background-color: #dff6dd; color: var(--success); border: 1px solid #b7eb8f; }
+        .alert-error { background-color: #fde8e8; color: var(--danger); border: 1px solid #ffa39e; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>🖨️ سيرفر الطباعة السحابي</h2>
+        <div id="agentStatus" class="status-badge status-offline">جاري الاتصال بحاسوبك...</div>
+    </div>
+
+    <form id="printForm">
+        <!-- 1. اختيار الطابعة -->
+        <div class="form-group">
+            <label for="printerSelect">اختر الطابعة المتصلة بالحاسوب:</label>
+            <select id="printerSelect" required disabled>
+                <option value="">-- بانتظار استجابة الحاسوب --</option>
+            </select>
+        </div>
+
+        <!-- 2. رفع الملف -->
+        <div class="form-group">
+            <label for="fileInput">اختر المستند أو الصورة (PDF / Image):</label>
+            <input type="file" id="fileInput" accept="application/pdf,image/*" required disabled>
+        </div>
+
+        <!-- 3. عدد النسخ -->
+        <div class="form-group">
+            <label for="copiesInput">عدد النسخ:</label>
+            <input type="number" id="copiesInput" value="1" min="1" max="50" required disabled>
+        </div>
+
+        <!-- زر الإرسال -->
+        <button type="submit" id="submitBtn" class="btn-print" disabled>طباعة الآن</button>
+    </form>
+
+    <div id="alertBox" class="alert"></div>
+</div>
+
+<script>
+    // الاتصال بسيرفر Socket.io
+    const socket = io();
+
+    const agentStatus = document.getElementById('agentStatus');
+    const printerSelect = document.getElementById('printerSelect');
+    const fileInput = document.getElementById('fileInput');
+    const copiesInput = document.getElementById('copiesInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const alertBox = document.getElementById('alertBox');
+
+    // الاستماع لحالة اتصال حاسوبك (Agent)
+    socket.on('agent_status', (data) => {
+        if (data.online) {
+            agentStatus.textContent = '● الحاسوب متصل وجاهز للطباعة';
+            agentStatus.className = 'status-badge status-online';
+            
+            // تعبئة قائمة الطابعات
+            printerSelect.innerHTML = '';
+            data.printers.forEach(printer => {
+                const option = document.createElement('option');
+                option.value = printer;
+                option.textContent = printer;
+                printerSelect.appendChild(option);
+            });
+
+            // تفعيل عناصر الواجهة
+            printerSelect.disabled = false;
+            fileInput.disabled = false;
+            copiesInput.disabled = false;
+            submitBtn.disabled = false;
+        } else {
+            agentStatus.textContent = '○ الحاسوب غير متصل';
+            agentStatus.className = 'status-badge status-offline';
+            
+            printerSelect.innerHTML = '<option value="">-- الحاسوب مغلق أو غير متصل --</option>';
+            printerSelect.disabled = true;
+            fileInput.disabled = true;
+            copiesInput.disabled = true;
+            submitBtn.disabled = true;
+        }
+    });
+
+    // إرسال أمر الطباعة
+    document.getElementById('printForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        showAlert('جاري رفع الملف وإرساله للطابعة...', 'success');
+        submitBtn.disabled = true;
+
+        // تحويل الملف إلى Base64 لنقله عبر WebSocket
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const fileData = {
+                printerName: printerSelect.value,
+                fileName: file.name,
+                fileType: file.type,
+                fileBuffer: evt.target.result,
+                copies: copiesInput.value
+            };
+
+            // إرسال البيانات للسيرفر السحابي
+            socket.emit('print_job', fileData);
+            
+            showAlert('تم إرسال أمر الطباعة بنجاح بنجاح إلى حاسوبك!', 'success');
+            submitBtn.disabled = false;
+            fileInput.value = '';
+        };
+
+        reader.readAsDataURL(file);
+    });
+
+    function showAlert(msg, type) {
+        alertBox.textContent = msg;
+        alertBox.className = `alert alert-${type}`;
+        alertBox.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
