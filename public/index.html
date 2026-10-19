@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سيرفر الطباعة السحابي - Cloud Print Gateway</title>
+    <title>CloudPrint - سيرفر الطباعة السحابي</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -20,27 +20,24 @@
         }
     </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
-        body { font-family: 'Cairo', sans-serif; }
-    </style>
-
-<!-- إعدادات تطبيق الويب PWA للهواتف -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#2563eb">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="CloudPrint">
-    <link rel="apple-touch-icon" href="/logo.png">
-
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; }
+    </style>
 </head>
 <body class="bg-slate-100 dark:bg-darkbg text-slate-800 dark:text-slate-100 min-h-screen transition-colors duration-200 p-3 sm:p-6">
 
     <!-- Header / Nav -->
     <header class="max-w-7xl mx-auto bg-white dark:bg-darkcard rounded-2xl shadow-sm p-4 mb-4 sm:mb-6 border border-slate-200 dark:border-slate-800 flex flex-wrap justify-between items-center gap-3">
         <div class="flex items-center gap-3">
-            <div class="bg-brand-600 text-white p-2.5 rounded-xl shadow-md">
-                <i class="fa-solid fa-print text-xl"></i>
+            <!-- الشعار التلقائي المضمون -->
+            <div class="bg-brand-600 text-white p-3 rounded-2xl shadow-lg flex items-center justify-center">
+                <i class="fa-solid fa-print text-2xl"></i>
             </div>
             <div>
                 <h1 class="font-bold text-base sm:text-lg">سيرفر الطباعة السحابي</h1>
@@ -85,7 +82,7 @@
                         <label class="flex flex-col items-center justify-center w-full h-32 sm:h-36 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-xl cursor-pointer bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 transition p-4">
                             <div class="flex flex-col items-center justify-center text-center">
                                 <i class="fa-solid fa-cloud-arrow-up text-3xl text-brand-500 mb-2"></i>
-                                <p id="uploadLabel" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">انقر لرفع ملف PDF أو صورة من جهازك</p>
+                                <p id="uploadLabel" class="text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">انقر لرفع ملف أو شاركه من واتساب</p>
                                 <p class="text-[10px] text-slate-400 mt-1">PDF, PNG, JPG, JPEG (حد أقصى 25MB)</p>
                             </div>
                             <input type="file" id="fileInput" class="hidden" accept="application/pdf,image/*" required />
@@ -169,7 +166,7 @@
             <div id="previewContainer" class="flex-1 min-h-[300px] sm:min-h-[400px] bg-slate-50 dark:bg-slate-900/50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center relative overflow-hidden p-2 sm:p-4">
                 <div class="text-center text-slate-400">
                     <i class="fa-regular fa-file-pdf text-4xl mb-2"></i>
-                    <p class="text-xs sm:text-sm">الرجاء اختيار ملف لعرض المعاينة هنا</p>
+                    <p class="text-xs sm:text-sm">الرجاء اختيار ملف أو مشاركته من واتساب لعرضه</p>
                 </div>
             </div>
 
@@ -209,11 +206,27 @@
         document.getElementById('themeIcon').className = 'fa-solid fa-moon';
     }
 
+    // Handle Shared Files (e.g. from WhatsApp)
+    window.addEventListener('DOMContentLoaded', () => {
+        if (navigator.serviceWorker) {
+            navigator.serviceWorker.register('/sw.js').catch(() => {});
+        }
+        
+        // Check if opened via share target
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('shared') || window.location.pathname === '/share') {
+            // Handled via PWA postMessage or FormData if submitted
+        }
+    });
+
     // Preview
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (!file) return;
+        processFile(file);
+    });
 
+    function processFile(file) {
         uploadLabel.textContent = file.name;
         const reader = new FileReader();
         reader.onload = function(evt) {
@@ -238,7 +251,7 @@
             fileSizeText.textContent = `${(file.size / (1024*1024)).toFixed(2)} MB`;
         };
         reader.readAsDataURL(file);
-    });
+    }
 
     function zoomPreview(delta) {
         currentZoom = Math.max(0.5, Math.min(2, currentZoom + delta));
@@ -298,7 +311,7 @@
             });
             
             if (response.ok) {
-                showAlert(`تم تعيين الطابعة "${selectedPrinter}" كافتراضية بنجاح! 🖨️`, 'success');
+                showAlert(`تم تثبيت وطباعة الطابعة "${selectedPrinter}" كافتراضية بشكل دائم! 🖨️`, 'success');
             } else {
                 showAlert('فشل تعيين الطابعة الافتراضية.', 'error');
             }

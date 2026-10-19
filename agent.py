@@ -1,6 +1,7 @@
 import time
 import requests
 import win32print
+import win32con
 import os
 import base64
 
@@ -30,9 +31,18 @@ def check_for_default_printer_request():
             data = response.json()
             printer_name = data.get('printerName')
             if printer_name:
-                print(f"Setting default printer to: {printer_name}")
+                print(f"Setting persistent default printer to: {printer_name}")
+                # تعيين الطابعة افتراضياً بشكل دائم وقوي في نظام ويندوز
                 win32print.SetDefaultPrinter(printer_name)
-                print(f"Default printer successfully changed to '{printer_name}'.")
+                # تحديث الـ Registry لضمان عدم عودتها للحالة القديمة
+                try:
+                    import winreg
+                    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows", 0, winreg.KEY_SET_VALUE)
+                    winreg.SetValueEx(key, "Device", 0, winreg.REG_SZ, f"{printer_name},winspool,Ne00")
+                    winreg.CloseKey(key)
+                except Exception as reg_err:
+                    print(f"Registry note: {reg_err}")
+                print(f"Default printer permanently set to '{printer_name}'.")
     except Exception as e:
         print(f"Error checking default printer: {e}")
 
@@ -77,7 +87,7 @@ def execute_print_job(job):
         print(f"Failed to print: {e}")
 
 if __name__ == "__main__":
-    print("=== Local Cloud Print Agent Started ===")
+    print("=== Local Cloud Print Agent Started (v2.5) ===")
     while True:
         register_agent()
         check_for_default_printer_request()

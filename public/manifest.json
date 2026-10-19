@@ -1,5 +1,5 @@
 {
-  "name": "سيرفر الطباعة السحابي - Cloud Print",
+  "name": "سيرفر الطباعة السحابي - CloudPrint",
   "short_name": "CloudPrint",
   "description": "نظام طباعة سحابي متكامل لإدارة وطباعة المستندات عن بُعد",
   "start_url": "/",
@@ -8,14 +8,25 @@
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "/logo.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/logo.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/2936/2936757.png",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "name",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["application/pdf", "image/*"]
+        }
+      ]
+    }
+  }
 }
