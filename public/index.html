@@ -4,251 +4,162 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>سيرفر الطباعة السحابي - Cloud Print v2.4</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --border-color: #e2e8f0;
-            --primary: #0078d7;
-            --primary-hover: #106ebe;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --success: #107c41;
-            --danger: #d13438;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 95vh;
-        }
-
-        .top-bar {
-            width: 100%;
-            max-width: 1100px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: var(--card-bg);
-            padding: 15px 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-            box-sizing: border-box;
-        }
-
-        .top-bar h2 {
-            margin: 0;
-            font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .status-badge {
-            font-size: 0.85rem;
-            padding: 5px 12px;
-            border-radius: 20px;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .status-online { background-color: #dff6dd; color: var(--success); }
-        .status-offline { background-color: #fde8e8; color: var(--danger); }
-
-        .main-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-            width: 100%;
-            max-width: 1100px;
-        }
-
-        @media (max-width: 900px) {
-            .main-container { grid-template-columns: 1fr; }
-        }
-
-        .panel {
-            background: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 25px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            box-sizing: border-box;
-        }
-
-        .panel h3 {
-            margin-top: 0;
-            font-size: 1.05rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .form-group {
-            margin-bottom: 15px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 6px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        select, input[type="number"], input[type="text"] {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 0.9rem;
-            background: #fff;
-            box-sizing: border-box;
-        }
-
-        .file-drop-area {
-            border: 2px dashed var(--border-color);
-            border-radius: 6px;
-            padding: 20px;
-            text-align: center;
-            background: #fafafa;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .file-drop-area:hover { border-color: var(--primary); background: #f0f7ff; }
-
-        .preview-box {
-            width: 100%;
-            height: 250px;
-            border: 1px solid var(--border-color);
-            background: #fafafa;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            border-radius: 6px;
-            position: relative;
-        }
-
-        .preview-box img, .preview-box iframe {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-        }
-
-        .btn-print {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            width: 100%;
-            padding: 12px;
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .btn-print:hover { background-color: var(--primary-hover); }
-        .btn-print:disabled { background-color: #cbd5e1; cursor: not-allowed; }
-
-        .console-box {
-            background: #0f172a;
-            color: #38bdf8;
-            font-family: monospace;
-            padding: 15px;
-            border-radius: 6px;
-            height: 220px;
-            overflow-y: auto;
-            font-size: 0.8rem;
-            line-height: 1.5;
-        }
-
-        .alert {
-            margin-top: 15px;
-            padding: 10px;
-            font-size: 0.85rem;
-            border-radius: 6px;
-            display: none;
-            text-align: center;
-        }
-        .alert-success { background-color: #dff6dd; color: var(--success); }
-        .alert-error { background-color: #fde8e8; color: var(--danger); }
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Cairo', sans-serif; background-color: #f1f5f9; color: #1e293b; }
     </style>
 </head>
-<body>
+<body class="min-h-screen p-4 md:p-8 flex flex-col items-center">
 
-    <div class="top-bar">
-        <h2>🖨️ سيرفر الطباعة السحابي <span style="font-size: 0.8rem; color: var(--text-muted);">v2.4</span></h2>
-        <div id="agentStatus" class="status-badge status-offline">○ جاري التحقق من اتصال الحاسوب...</div>
-    </div>
+    <!-- شريط العلوية -->
+    <header class="w-full max-w-7xl bg-white shadow-sm rounded-xl p-4 px-6 mb-6 flex justify-between items-center border border-slate-100">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 text-white p-2.5 rounded-lg shadow-md">
+                <i class="fa-solid fa-print text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold text-slate-800">سيرفر الطباعة السحابي</h1>
+                <p class="text-xs text-slate-500">ربط طابعات الحاسوب المحلي بالشبكة السحابية للطباعة عن بُعد</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div id="agentStatus" class="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-200">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>جاري التحقق من الاتصال...</span>
+            </div>
+        </div>
+    </header>
 
-    <div class="main-container">
-        <!-- لوحة معاينة الملفات -->
-        <div class="panel">
-            <h3>📄 معاينة المخرجات المباشرة (Live Preview)</h3>
-            <div class="form-group" style="margin-top: 15px;">
-                <label>معاينة المستند أو الصورة:</label>
-                <div class="preview-box" id="previewContainer">
-                    <span style="color: var(--text-muted); font-size: 0.9rem;">الرجاء اختيار ملف لعرض المعاينة هنا</span>
+    <!-- الحاوية الرئيسية -->
+    <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- قسم المعاينة الحية (يمين في العربية) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col">
+            <div class="flex justify-between items-center mb-4 border-b pb-3 border-slate-100">
+                <h2 class="font-bold text-slate-700 flex items-center gap-2">
+                    <i class="fa-regular fa-eye text-blue-600"></i> معاينة المخرجات المباشرة (Live Preview)
+                </h2>
+                <div class="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-lg text-xs text-slate-600">
+                    <button onclick="zoomPreview(0.1)" class="hover:text-blue-600"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                    <span id="zoomLevel">100%</span>
+                    <button onclick="zoomPreview(-0.1)" class="hover:text-blue-600"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
                 </div>
             </div>
-            <div id="fileInfo" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 10px;">
-                جاهز للطباعة: لم يتم اختيار ملف بعد.
+
+            <!-- إطار المعاينة -->
+            <div id="previewContainer" class="flex-1 min-h-[400px] bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center relative overflow-hidden p-4">
+                <div class="text-center text-slate-400">
+                    <i class="fa-regular fa-file-pdf text-4xl mb-2"></i>
+                    <p class="text-sm">الرجاء اختيار ملف لعرض المعاينة هنا</p>
+                </div>
+            </div>
+
+            <!-- شريط معلومات الملف السفلي -->
+            <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
+                <span id="fileStatusText">جاهز للطباعة: لم يتم اختيار ملف بعد.</span>
+                <span id="fileSizeText">MB 0.0</span>
             </div>
         </div>
 
-        <!-- لوحة إرسال أمر الطباعة (نافذة ويندوز) -->
-        <div class="panel">
-            <h3>🪟 نافذة طباعة ويندوز (Windows Print)</h3>
-            
-            <form id="printForm">
-                <div class="form-group">
-                    <label>اختر الملف المراد طباعته (PDF / صورة):</label>
-                    <div class="file-drop-area" onclick="document.getElementById('fileInput').click()">
-                        📁 انقر لرفع ملف PDF أو صورة من جهازك
-                        <input type="file" id="fileInput" accept="application/pdf,image/*" style="display: none;" required>
+        <!-- قسم خيارات النافذة والطباعة (يسار في العربية) -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 flex flex-col justify-between">
+            <div>
+                <div class="flex justify-between items-center mb-4 border-b pb-3 border-slate-100">
+                    <h2 class="font-bold text-slate-700 flex items-center gap-2">
+                        <i class="fa-brands fa-windows text-blue-600"></i> نافذة طباعة ويندوز (Windows Print)
+                    </h2>
+                </div>
+
+                <form id="printForm" class="space-y-4">
+                    <!-- رفع الملف -->
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">اختر الملف المراد طباعته (PDF / صورة):</label>
+                        <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                <i class="fa-solid fa-cloud-arrow-up text-2xl text-blue-500 mb-1"></i>
+                                <p class="text-xs text-slate-600 font-semibold" id="uploadLabel">انقر لرفع ملف PDF أو صورة من جهازك</p>
+                                <p class="text-[10px] text-slate-400 mt-0.5">PDF, PNG, JPG, JPEG (حد أقصى 25MB)</p>
+                            </div>
+                            <input type="file" id="fileInput" class="hidden" accept="application/pdf,image/*" required />
+                        </label>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="printerSelect">الطابعة المستهدفة (من حاسوب العمل):</label>
-                    <select id="printerSelect" required disabled>
-                        <option value="">-- بانتظار اتصال الحاسوب المحلي --</option>
-                    </select>
-                </div>
+                    <!-- اختيار الطابعة -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="text-xs font-bold text-slate-600">الطابعة المستهدفة (من حاسوب العمل):</label>
+                            <button type="button" onclick="fetchPrinters()" class="text-[11px] text-blue-600 hover:underline flex items-center gap-1">
+                                <i class="fa-solid fa-rotate"></i> تحديث القائمة
+                            </button>
+                        </div>
+                        <select id="printerSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 focus:ring-2 focus:ring-blue-500 focus:outline-none" required disabled>
+                            <option value="">-- بانتظار اتصال الحاسوب المحلي --</option>
+                        </select>
+                    </div>
 
-                <div class="form-group">
-                    <label for="copiesInput">عدد النسخ:</label>
-                    <input type="number" id="copiesInput" value="1" min="1" max="99" required>
-                </div>
+                    <!-- خيارات إضافية متقدمة -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">عدد النسخ:</label>
+                            <input type="number" id="copiesInput" value="1" min="1" max="99" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700 text-center" required />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">اتجاه الصفحة:</label>
+                            <select id="orientationSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700">
+                                <option value="portrait">عمودي (Portrait)</option>
+                                <option value="landscape">أفقي (Landscape)</option>
+                            </select>
+                        </div>
+                    </div>
 
-                <div id="alertBox" class="alert"></div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">نمط الألوان:</label>
+                            <select id="colorSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700">
+                                <option value="color">ملون (Color)</option>
+                                <option value="grayscale">أبيض وأسود (Mono)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">حجم الورق:</label>
+                            <select id="paperSize" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-700">
+                                <option value="A4">A4 (210 x 297 mm)</option>
+                                <option value="A3">A3 (297 x 420 mm)</option>
+                                <option value="Letter">Letter</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
 
-                <button type="submit" id="submitBtn" class="btn-print" disabled style="margin-top: 10px;">إرسال للطباعة عبر السحاب 🚀</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- لوحة السجل المحلي والسيرفر -->
-    <div class="main-container" style="margin-top: 25px;">
-        <div class="panel" style="grid-column: span 2;">
-            <h3>💻 سجل السيرفر المحلي والنشاط (Python / Node.js Service Console)</h3>
-            <div class="console-box" id="consoleLog">
-                [System] Initializing Windows Cloud Print Local Agent v2.4...<br>
-                [System] Waiting for connection with Cloud Server...<br>
+            <!-- زر الإرسال -->
+            <div class="mt-6">
+                <div id="alertBox" class="mb-3 p-3 text-xs rounded-xl hidden text-center font-semibold"></div>
+                <button type="button" id="submitBtn" onclick="sendPrintJob()" disabled class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-blue-500/20 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> إرسال للطباعة عبر السحاب
+                </button>
             </div>
         </div>
-    </div>
+
+    </main>
+
+    <!-- سجل السيرفر المحلي -->
+    <section class="w-full max-w-7xl mt-6 bg-slate-900 text-slate-200 rounded-2xl p-5 shadow-lg border border-slate-800">
+        <div class="flex justify-between items-center mb-3 pb-2 border-b border-slate-800 text-xs">
+            <span class="font-bold flex items-center gap-2 text-slate-300">
+                <i class="fa-solid fa-terminal text-blue-400"></i> سجل السيرفر المحلي والنشاط (Python / Node.js Service Console)
+            </span>
+            <button onclick="clearConsole()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-trash-can"></i> مسح السجل</button>
+        </div>
+        <div id="consoleLog" class="font-mono text-[11px] h-32 overflow-y-auto space-y-1 text-sky-400">
+            <div>[System] Initializing Windows Cloud Print Local Agent v2.4...</div>
+            <div>[System] Waiting for connection with Cloud Server...</div>
+        </div>
+    </section>
 
 <script>
     const agentStatus = document.getElementById('agentStatus');
@@ -258,15 +169,24 @@
     const submitBtn = document.getElementById('submitBtn');
     const alertBox = document.getElementById('alertBox');
     const previewContainer = document.getElementById('previewContainer');
-    const fileInfo = document.getElementById('fileInfo');
+    const fileStatusText = document.getElementById('fileStatusText');
+    const fileSizeText = document.getElementById('fileSizeText');
     const consoleLog = document.getElementById('consoleLog');
+    const uploadLabel = document.getElementById('uploadLabel');
 
     let fileBase64Data = "";
+    let currentZoom = 1;
 
     function logToConsole(msg) {
         const time = new Date().toLocaleTimeString();
-        consoleLog.innerHTML += `[${time}] ${msg}<br>`;
+        const div = document.createElement('div');
+        div.textContent = `[${time}] ${msg}`;
+        consoleLog.appendChild(div);
         consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    function clearConsole() {
+        consoleLog.innerHTML = '';
     }
 
     // معاينة الملف
@@ -274,6 +194,7 @@
         const file = e.target.files[0];
         if (!file) return;
 
+        uploadLabel.textContent = file.name;
         const reader = new FileReader();
         reader.onload = function(evt) {
             fileBase64Data = evt.target.result;
@@ -282,66 +203,73 @@
             if (file.type.startsWith('image/')) {
                 const img = document.createElement('img');
                 img.src = fileBase64Data;
+                img.id = 'previewElement';
+                img.className = 'max-h-full max-w-full object-contain transition-transform duration-200';
                 previewContainer.appendChild(img);
             } else if (file.type === 'application/pdf') {
                 const iframe = document.createElement('iframe');
                 iframe.src = fileBase64Data;
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                iframe.style.border = 'none';
+                iframe.id = 'previewElement';
+                iframe.className = 'w-full h-full border-0 rounded-lg';
                 previewContainer.appendChild(iframe);
-            } else {
-                previewContainer.innerHTML = '<span style="color:var(--text-muted)">ملف جاهز للطباعة</span>';
             }
 
-            fileInfo.textContent = `الملف: ${file.name} | الحجم: ${(file.size / 1024).toFixed(1)} KB`;
+            fileStatusText.textContent = `جاهز للطباعة: ${file.name}`;
+            fileSizeText.textContent = `${(file.size / (1024*1024)).toFixed(2)} MB`;
             logToConsole(`تم تحميل الملف بنجاح للمعاينة: ${file.name}`);
         };
         reader.readAsDataURL(file);
     });
 
-    // جلب الطابعات
+    function zoomPreview(delta) {
+        currentZoom = Math.max(0.5, Math.min(2, currentZoom + delta));
+        const el = document.getElementById('previewElement');
+        if (el) el.style.transform = `scale(${currentZoom})`;
+        document.getElementById('zoomLevel').textContent = `${Math.round(currentZoom * 100)}%`;
+    }
+
+    // جلب الطابعات المتصلة
     async function fetchPrinters() {
         try {
             const response = await fetch('/api/printers');
             const data = await response.json();
             
             if (data.printers && data.printers.length > 0) {
-                agentStatus.textContent = '● الحاسوب متصل بالسيرفر (نشط)';
-                agentStatus.className = 'status-badge status-online';
+                agentStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span><span class="text-emerald-600 font-bold">الحاسوب متصل بالسيرفر (نشط)</span>';
+                agentStatus.className = "flex items-center gap-2 bg-emerald-50 px-3 py-1.5 rounded-full text-xs font-semibold border border-emerald-200";
                 
-                const currentSelected = printerSelect.value;
+                const currentVal = printerSelect.value;
                 printerSelect.innerHTML = '';
-                data.printers.forEach(printer => {
-                    const option = document.createElement('option');
-                    option.value = printer;
-                    option.textContent = printer;
-                    if (printer === currentSelected) option.selected = true;
-                    printerSelect.appendChild(option);
+                data.printers.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p;
+                    opt.textContent = p;
+                    if (p === currentVal) opt.selected = true;
+                    printerSelect.appendChild(opt);
                 });
-
                 printerSelect.disabled = false;
                 submitBtn.disabled = false;
             } else {
-                agentStatus.textContent = '○ بانتظار تشغيل agent.py محلياً';
-                agentStatus.className = 'status-badge status-offline';
+                agentStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span><span class="text-amber-600 font-bold">بانتظار تشغيل agent.py محلياً</span>';
                 printerSelect.innerHTML = '<option value="">-- الحاسوب المحلي غير متصل --</option>';
                 printerSelect.disabled = true;
                 submitBtn.disabled = true;
             }
         } catch (e) {
-            agentStatus.textContent = '○ خطأ في الاتصال بالسحاب';
+            agentStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-red-600 font-bold">خطأ في الاتصال بالسحاب</span>';
         }
     }
 
     fetchPrinters();
     setInterval(fetchPrinters, 4000);
 
-    // إرسال المهمة
-    document.getElementById('printForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // إرسال مهمة الطباعة
+    async function sendPrintJob() {
         const file = fileInput.files[0];
-        if (!file || !fileBase64Data) return;
+        if (!file || !fileBase64Data) {
+            showAlert('الرجاء اختيار ملف أولاً!', 'error');
+            return;
+        }
 
         showAlert('جاري إرسال المهمة للطباعة الصامتة في الخلفية...', 'success');
         submitBtn.disabled = true;
@@ -351,7 +279,10 @@
             printerName: printerSelect.value,
             fileName: file.name,
             fileUrl: fileBase64Data,
-            copies: copiesInput.value
+            copies: copiesInput.value,
+            orientation: document.getElementById('orientationSelect').value,
+            colorMode: document.getElementById('colorSelect').value,
+            paperSize: document.getElementById('paperSize').value
         };
 
         try {
@@ -364,27 +295,23 @@
             const result = await response.json();
             if (response.ok) {
                 showAlert('تمت الطباعة الصامتة في الخلفية بنجاح تام! 🖨️', 'success');
-                logToConsole(`تمت معالجة وإرسال المهمة بنجاح إلى الطابعة.`);
-                fileInput.value = '';
-                previewContainer.innerHTML = '<span style="color: var(--text-muted); font-size: 0.9rem;">الرجاء اختيار ملف لعرض المعاينة هنا</span>';
-                fileInfo.textContent = 'جاهز للطباعة: لم يتم اختيار ملف بعد.';
-                fileBase64Data = "";
+                logToConsole(`تم إرسال ونفذت المهمة بنجاح على طابعة: ${printerSelect.value}`);
             } else {
-                showAlert('حدث خطأ أثناء الطباعة.', 'error');
-                logToConsole(`خطأ في الإرسال: ${result.message}`);
+                showAlert('حدث خطأ أثناء إرسال المهمة.', 'error');
+                logToConsole(`خطأ: ${result.message || 'غير معروف'}`);
             }
         } catch (err) {
-            showAlert('فشل الاتصال بالسيرفر.', 'error');
+            showAlert('فشل الاتصال بالسيرفر السحابي.', 'error');
             logToConsole(`فشل الاتصال: ${err.message}`);
         } finally {
             submitBtn.disabled = false;
         }
-    });
+    }
 
     function showAlert(msg, type) {
         alertBox.textContent = msg;
-        alertBox.className = `alert alert-${type}`;
-        alertBox.style.display = 'block';
+        alertBox.className = `mb-3 p-3 text-xs rounded-xl text-center font-semibold ${type === 'success' ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-red-50 text-red-600 border border-red-200'}`;
+        alertBox.classList.remove('hidden');
     }
 </script>
 
