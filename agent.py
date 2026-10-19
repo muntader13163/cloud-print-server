@@ -1,7 +1,6 @@
 import time
 import requests
 import win32print
-import win32api
 import os
 import base64
 
@@ -24,13 +23,27 @@ def register_agent():
     except Exception as e:
         print(f"فشل الاتصال بالسيرفر لتسجيل الطابعات: {e}")
 
+def check_for_default_printer_request():
+    try:
+        response = requests.get(f"{CLOUD_SERVER}/api/get-default-printer-job")
+        if response.status_code == 200:
+            data = response.json()
+            printer_name = data.get('printerName')
+            if printer_name:
+                print(f"استلام أمر تعيين طابعة افتراضية: {printer_name}")
+                win32print.SetDefaultPrinter(printer_name)
+                print(ف"تم تعيين الطابعة '{printer_name}' كافتراضية بنجاح على نظام التشغيل.")
+    except Exception as e:
+        print(f"خطأ أثناء التحقق من أمر الطابعة الافتراضية: {e}")
+
 def check_for_jobs():
     try:
         response = requests.get(f"{CLOUD_SERVER}/api/get-job")
         if response.status_code == 200:
             job = response.json()
-            print(f"تم استلام مهمة طباعة للطابعة: {job.get('printerName')}")
-            execute_print_job(job)
+            if job and job.get('printerName'):
+                print(f"تم استلام مهمة طباعة للطابعة: {job.get('printerName')}")
+                execute_print_job(job)
     except Exception as e:
         print(f"خطأ أثناء سحب المهام: {e}")
 
@@ -47,12 +60,6 @@ def execute_print_job(job):
             temp_file_path = os.path.join(os.environ.get('TEMP', '.'), file_name)
             with open(temp_file_path, "wb") as f:
                 f.write(file_data)
-                
-            # تعيين الطابعة كافتراضية مؤقتاً للطباعة
-            try:
-                win32print.SetDefaultPrinter(printer_name)
-            except Exception as e:
-                print(f"تنبيه: {e}")
 
             # الطباعة الخام الصامتة في الخلفية
             hPrinter = win32print.OpenPrinter(printer_name)
@@ -74,5 +81,6 @@ if __name__ == "__main__":
     print("=== الوسيط المحلي يعمل في الخلفية للطباعة السحابية ===")
     while True:
         register_agent()
+        check_for_default_printer_request()
         check_for_jobs()
-        time.sleep(4)
+        time.sleep(3)
