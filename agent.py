@@ -1,67 +1,86 @@
 import time
-import os
 import requests
 import win32print
 import win32api
+import os
+import base64
 
-# رابط السيرفر السحابي على Vercel
-SERVER_URL = "https://cloud-print-server-iota.vercel.app"
+# رابط السيرفر السحابي الخاص بك على Vercel
+CLOUD_SERVER = "https://cloud-print-server-iota.vercel.app"
 
 def get_installed_printers():
-    """جلب الطابعات المتصلة بحاسوبك"""
+    """جلب قائمة الطابعات المثبتة على الجهاز المحلي"""
     printers = []
     try:
-        printer_objs = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
-        for p in printer_objs:
+        printer_info = win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS)
+        for p in printer_info:
             printers.append(p[2])
     except Exception as e:
         print(f"خطأ في جلب الطابعات: {e}")
     return printers
 
-def listen_for_print_jobs():
-    print("تم تشغيل الوسيط المحلي بنجاح، وهو يراقب السيرفر السحابي للطباعة...")
-    
-    # تسجيل الطابعات المتاحة لدى السيرفر عند البدء
+def register_agent():
+    """إرسال الطابعات المتاحة إلى السيرفر السحابي"""
+    printers = get_installed_printers()
     try:
-        printers = get_installed_printers()
-        requests.post(f"{SERVER_URL}/api/register-agent", json={"printers": printers}, timeout=10)
+        requests.post(f"{CLOUD_SERVER}/api/register-agent", json={"printers": printers})
     except Exception as e:
-        print(f"تعذر تسجيل الطابعات لدى السيرفر مبدئياً: {e}")
+        print(f"فشل الاتصال بالسيرفر لتسجيل الطابعات: {e}")
 
-    while True:
-        try:
-            # طلب مهمة الطباعة الجديدة من السيرفر السحابي
-            response = requests.get(f"{SERVER_URL}/api/get-job", timeout=10)
-            
-            if response.status_code == 200:
-                job = response.json()
-                if job and job.get("fileUrl"):
-                    file_url = job.get("fileUrl")
-                    printer_name = job.get("printerName")
-                    file_name = job.get("fileName", "document.pdf")
-                    
-                    print(f"استلام مستند للطباعة: {file_name}")
-                    
-                    # تنزيل الملف مؤقتاً وطباعته
-                    local_filename = f"temp_print_{int(time.time())}.pdf"
-                    file_response = requests.get(file_url)
-                    with open(local_filename, 'wb') as f:
-                        f.write(file_response.content)
-
-                    win32api.ShellExecute(0, "printto", os.path.abspath(local_filename), f'"{printer_name}"', ".", 0)
-                    print(f"تم إرسال الملف بنجاح إلى الطابعة: {printer_name}")
-                    
-                    # إعلام السيرفر بأن المهام تمت بنجاح (اختياري حسب تصميم السيرفر)
-                    requests.post(f"{SERVER_URL}/api/job-done", json={"jobId": job.get("id")}, timeout=5)
-            
-        except requests.exceptions.RequestException:
-            # تجاهل أخطاء الاتصال المؤقتة وإعادة المحاولة بصمت
+def check_for_jobs():
+    """التحقق من وجود مهام طباعة جديدة من السيرفر"""
+    try:
+        response = requests.get(f"{CLOUD_SERVER}/api/get-job")
+        if response.status_code == 200:
+            job = response.json()
+            print(f"تم استلام مهمة طباعة للطابعة: {job.get('printerName')}")
+            execute_print_job(job)
+        elif response.status_code == 204:
             pass
-        except Exception as e:
-            print(f"خطأ أثناء معالجة مهمة الطباعة: {e}")
-        
-        # الانتظار لمدة 5 ثوانٍ قبل السؤال عن مهمة جديدة لتجنب الضغط على السيرفر
-        time.sleep(5)
+    except Exception as e:
+        print(f"خطأ أثناء سحب المهام: {e}")
 
-if __name__ == '__main__':
-    listen_for_print_jobs()
+def execute_print_job(job):
+    """تنفيذ الطباعة صامتاً في الخلفية بدون أي نوافذ منبثقة"""
+    file_url = job.get('fileUrl')
+    printer_name = job.get('printerName')
+    file_name = job.get('fileName', 'print_doc.pdf')
+    
+    try:
+        if "base64," in file_url:
+            header, encoded = file_url.split(",", 1)
+            file_data = base64.b64decode(encoded)
+            
+            temp_file_path = os.path.join(os.environ.get('TEMP', '.'), file_name)
+            with open(temp_file_path, "wb") as f:
+                f.write(file_data)
+                
+            # الطريقة الأضمن للطباعة الصامتة المباشرة عبر البيانات الثنائية للطابعة
+            hPrinter = win32print.OpenPrinter(printer_name)
+            try:
+                # بدء مهمة طباعة خام (RAW) صامتة بالكامل في الخلفية
+                hJob = win32print.StartDocPrinter(hPrinter, 1, (file_name, None, "RAW"))
+                win32print.StartPagePrinter(hPrinter)
+                
+                with open(temp_file_path, "rb") as f:
+                    win32print.WritePrinter(hPrinter, f.read())
+                    
+                win32print.EndPagePrinter(hPrinter)
+                win32print.EndDocPrinter(hPrinter)
+                print(f"تمت الطباعة بنجاح صامتاً في الخلفية على '{printer_name}'.")
+            finally:
+                win32print.ClosePrinter(hPrinter)
+                
+    except Exception as e:
+        print(f"فشل الطباعة المباشرة، جاري محاولة الطريقة البديلة: {e}")
+        try:
+            win32api.ShellExecute(0, "open", temp_file_path, f'/p /h "{printer_name}"', ".", 0)
+        except Exception as ex:
+            print(f"فشل نهائي: {ex}")
+
+if __name__ == "__main__":
+    print("=== الوسيط المحلي يعمل في الخلفية للطباعة السحابية ===")
+    while True:
+        register_agent()      # تحديث وتسجيل الطابعات دورياً
+        check_for_jobs()      # فحص مهام الطباعة الجديدة
+        time.sleep(4)         # الانتظار لمدة 4 ثوانٍ قبل الطلب التالي
