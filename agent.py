@@ -13,7 +13,7 @@ def get_installed_printers():
         for p in printer_info:
             printers.append(p[2])
     except Exception as e:
-        print(f"خطأ في جلب الطابعات: {e}")
+        print(f"Error fetching printers: {e}")
     return printers
 
 def register_agent():
@@ -21,7 +21,7 @@ def register_agent():
     try:
         requests.post(f"{CLOUD_SERVER}/api/register-agent", json={"printers": printers})
     except Exception as e:
-        print(f"فشل الاتصال بالسيرفر لتسجيل الطابعات: {e}")
+        print(f"Failed to register agent: {e}")
 
 def check_for_default_printer_request():
     try:
@@ -30,11 +30,11 @@ def check_for_default_printer_request():
             data = response.json()
             printer_name = data.get('printerName')
             if printer_name:
-                print(f"استلام أمر تعيين طابعة افتراضية: {printer_name}")
+                print(f"Setting default printer to: {printer_name}")
                 win32print.SetDefaultPrinter(printer_name)
-                print(ف"تم تعيين الطابعة '{printer_name}' كافتراضية بنجاح على نظام التشغيل.")
+                print(f"Default printer successfully changed to '{printer_name}'.")
     except Exception as e:
-        print(f"خطأ أثناء التحقق من أمر الطابعة الافتراضية: {e}")
+        print(f"Error checking default printer: {e}")
 
 def check_for_jobs():
     try:
@@ -42,10 +42,10 @@ def check_for_jobs():
         if response.status_code == 200:
             job = response.json()
             if job and job.get('printerName'):
-                print(f"تم استلام مهمة طباعة للطابعة: {job.get('printerName')}")
+                print(f"Received print job for printer: {job.get('printerName')}")
                 execute_print_job(job)
     except Exception as e:
-        print(f"خطأ أثناء سحب المهام: {e}")
+        print(f"Error checking jobs: {e}")
 
 def execute_print_job(job):
     file_url = job.get('fileUrl')
@@ -61,7 +61,6 @@ def execute_print_job(job):
             with open(temp_file_path, "wb") as f:
                 f.write(file_data)
 
-            # الطباعة الخام الصامتة في الخلفية
             hPrinter = win32print.OpenPrinter(printer_name)
             try:
                 hJob = win32print.StartDocPrinter(hPrinter, 1, (file_name, None, "RAW"))
@@ -70,15 +69,15 @@ def execute_print_job(job):
                     win32print.WritePrinter(hPrinter, f.read())
                 win32print.EndPagePrinter(hPrinter)
                 win32print.EndDocPrinter(hPrinter)
-                print(f"تمت الطباعة بنجاح صامتاً في الخلفية على '{printer_name}'.")
+                print(f"Successfully printed silently on '{printer_name}'.")
             finally:
                 win32print.ClosePrinter(hPrinter)
                 
     except Exception as e:
-        print(f"فشل الطباعة: {e}")
+        print(f"Failed to print: {e}")
 
 if __name__ == "__main__":
-    print("=== الوسيط المحلي يعمل في الخلفية للطباعة السحابية ===")
+    print("=== Local Cloud Print Agent Started ===")
     while True:
         register_agent()
         check_for_default_printer_request()
